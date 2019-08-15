@@ -335,6 +335,7 @@ def get_values_arr_and_dt_arr(ncVar_temporal, ncVar_values, fill_val=None, time_
         calend = ncVar_temporal.calendar
     except:
         calend = 'gregorian'
+
     units=ncVar_temporal.units
     
     time_arr = ncVar_temporal[:]

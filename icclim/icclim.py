@@ -15,7 +15,7 @@ import numpy
 import logging
 import pkg_resources
 import time
-
+import xarray as xr
 import pdb
 
 from netCDF4 import Dataset, MFDataset
@@ -408,9 +408,18 @@ def indice(in_files,
                 VARS[v]['unit_conversion_var_scale']=var_scale
 
             filename = [name for name in VARS[v]['files_years'].keys()]
-            nc = MFDataset(filename, 'r', aggdim=dim_name) # VARS[v]['files_years'].keys(): files of current variable
-            var_time = nc.variables[indice_dim[0]]
-            var = nc.variables[v]
+
+
+            try:
+                nc = MFDataset(filename, 'r', aggdim=dim_name) 
+                var_time = nc.variables[indice_dim[0]]
+                var = nc.variables[v]
+            except:
+                import xarray as xr
+                ds = xr.open_mfdataset(filename, decode_cf=False)
+                var_time = ds.time
+                var = ds[v]
+
 
             ### coordinate of current chunk:
             ### indices of the left upper corner: (i1_row_current_tile, i1_col_current_tile)
@@ -438,12 +447,20 @@ def indice(in_files,
             VARS[v]['values_arr']=arrs_current_chunk[1]
 
 
-            
+            time_inter = time.clock()
+            print("time inter:"+str(time_inter-time_start))
             if indice_type.startswith('user_indice_') and user_indice['calc_operation']=='anomaly':
-                MF_nc = [MF_nc for MF_nc in VARS[v]['files_years_base'].keys()]
-                ncb = MFDataset(MF_nc, 'r', aggdim=dim_name)
-                var_time = ncb.variables[indice_dim[0]]
-                var = ncb.variables[v]
+                MF_nc = [MF_nc for MF_nc in VARS[v]['files_years_base'].keys()]    
+                try:
+                    ncb = MFDataset(MF_nc, 'r', aggdim=dim_name)
+                    var_time = ncb.variables[indice_dim[0]]
+                    var = ncb.variables[v]
+                except:
+                    import xarray as xr
+                    ds = xr.open_mfdataset(MF_nc)
+                    var_time = ds.time
+                    var = ds[v]
+
                 arrs_current_chunk_ref = util_nc.get_values_arr_and_dt_arr(ncVar_temporal=var_time, ncVar_values=var, 
                                                                             fill_val=VARS[v]['fill_value'], 
                                                                             time_range=base_period_time_range, 
@@ -464,9 +481,17 @@ def indice(in_files,
 
             if indice_type in ["percentile_based", "percentile_based_multivariable"] or indice_type.startswith('user_indice_percentile_'):
                 MF_nc = [MF_nc for MF_nc in VARS[v]['files_years_base'].keys()]
-                ncb = MFDataset(MF_nc, 'r', aggdim=dim_name)
-                var_time = ncb.variables[indice_dim[0]]
-                var = ncb.variables[v]
+                try:
+                    ncb = MFDataset(MF_nc, 'r', aggdim=dim_name)
+                    var_time = ncb.variables[indice_dim[0]]
+                    var = ncb.variables[v]
+                except:
+                    import xarray as xr
+                    pdb.set_trace()
+                    ds = xr.open_mfdataset(MF_nc)
+                    var_time = ds.time
+                    var = ds[v]
+
                 arrs_base_current_chunk = util_nc.get_values_arr_and_dt_arr(ncVar_temporal=var_time, ncVar_values=var, 
                                                                             fill_val=VARS[v]['fill_value'], 
                                                                             time_range=base_period_time_range, 
@@ -504,7 +529,7 @@ def indice(in_files,
             except:
                 pass
                 
-            nc.close()
+            #nc.close()
 
 
         if nb_user_thresholds == 0:
